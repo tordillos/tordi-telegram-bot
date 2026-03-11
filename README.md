@@ -73,6 +73,22 @@ Después del primer deploy, registra el webhook para que Telegram envíe mensaje
 curl "https://api.telegram.org/bot<TU_BOT_TOKEN>/setWebhook?url=https://tordi-telegram-bot.<TU_SUBDOMAIN>.workers.dev"
 ```
 
+## Comandos del bot
+
+| Comando | Descripción |
+|---|---|
+| `/start` | Mensaje de bienvenida |
+| `/status` | Comprueba que el bot funciona |
+| `/tiempo` | Muestra el tiempo actual y la previsión del día en Tordillos |
+
+El comando `/tiempo` usa la API de [Open-Meteo](https://open-meteo.com/) (gratuita, sin API key) para obtener:
+- Temperatura actual y sensación térmica
+- Humedad y viento
+- Máximas y mínimas del día
+- Probabilidad de lluvia (con aviso si supera el 40%)
+
+Para que los usuarios vean los comandos en el menú de Telegram, configúralos en [@BotFather](https://t.me/BotFather) con `/setcommands`.
+
 ## Deploy
 
 El deploy es automático: cada push a `main` dispara GitHub Actions que:
