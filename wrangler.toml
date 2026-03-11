@@ -1,0 +1,15 @@
+name = "tordi-telegram-bot"
+main = "src/index.ts"
+compatibility_date = "2025-03-01"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+crons = ["0 * * * *"]
+
+[[kv_namespaces]]
+binding = "NEWS_KV"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[vars]
+GROUP_CHAT_ID = ""
+SOURCE_CHANNEL_ID = ""
