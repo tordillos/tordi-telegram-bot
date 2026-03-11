@@ -4,14 +4,49 @@ import { fetchRss } from "./rss";
 const GACETA_RSS_URL = "https://www.lagacetadesalamanca.es/rss/";
 const KEYWORD = "tordillos";
 
-function matchesKeyword(article: NewsArticle): boolean {
+function matchesInTitleOrSummary(article: NewsArticle): boolean {
   const text = `${article.title} ${article.summary}`.toLowerCase();
   return text.includes(KEYWORD);
 }
 
+async function matchesInBody(article: NewsArticle): Promise<boolean> {
+  try {
+    const response = await fetch(article.url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (compatible; TordiBot/1.0; +https://github.com/tordillos/tordi-telegram-bot)",
+      },
+    });
+    if (!response.ok) return false;
+    const html = await response.text();
+    return html.toLowerCase().includes(KEYWORD);
+  } catch (err) {
+    console.error(`Failed to fetch article body: ${article.url}`, err);
+    return false;
+  }
+}
+
 export async function fetchGacetaNews(env: Env): Promise<NewsArticle[]> {
   const articles = await fetchRss(GACETA_RSS_URL, "La Gaceta de Salamanca");
-  const filtered = articles.filter(matchesKeyword);
+
+  // First pass: quick filter by title/summary
+  const matchedByHeader = articles.filter(matchesInTitleOrSummary);
+  const notMatchedByHeader = articles.filter(
+    (a) => !matchesInTitleOrSummary(a)
+  );
+
+  // Second pass: check article body for remaining articles
+  const bodyChecks = await Promise.all(
+    notMatchedByHeader.map(async (article) => ({
+      article,
+      matches: await matchesInBody(article),
+    }))
+  );
+  const matchedByBody = bodyChecks
+    .filter((r) => r.matches)
+    .map((r) => r.article);
+
+  const filtered = [...matchedByHeader, ...matchedByBody];
 
   const newArticles: NewsArticle[] = [];
   for (const article of filtered) {
