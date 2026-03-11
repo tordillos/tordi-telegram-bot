@@ -4,7 +4,7 @@ compatibility_date = "2025-03-01"
 compatibility_flags = ["nodejs_compat"]
 
 [triggers]
-crons = ["0 * * * *"]
+crons = ["0 * * * *", "0 7 * * *"]
 
 [[kv_namespaces]]
 binding = "NEWS_KV"
