@@ -5,15 +5,28 @@ import { getWeather } from "./weather";
 export function createBot(env: Env): Bot {
   const bot = new Bot(env.BOT_TOKEN);
 
-  bot.command("start", (ctx) =>
-    ctx.reply(
-      "Bot de noticias de Tordillos activo. Monitorizo La Gaceta de Salamanca y Noticias a Tiempo."
-    )
-  );
+  bot.use(async (ctx, next) => {
+    console.log(
+      `Update received: chat=${ctx.chat?.id}, text=${ctx.message?.text ?? ""}`
+    );
+    await next();
+  });
 
-  bot.command("status", (ctx) =>
-    ctx.reply("El bot está funcionando correctamente.")
-  );
+  bot.command("start", async (ctx) => {
+    console.log(`/start from chat ${ctx.chat?.id}`);
+    await ctx.reply(
+      "Bot de noticias de Tordillos activo. Monitorizo La Gaceta de Salamanca y Noticias a Tiempo."
+    );
+  });
+
+  bot.command("status", async (ctx) => {
+    console.log(`/status from chat ${ctx.chat?.id}`);
+    await ctx.reply("El bot está funcionando correctamente.");
+  });
+
+  bot.command("chatid", async (ctx) => {
+    await ctx.reply(`Chat ID: ${ctx.chat?.id}`);
+  });
 
   bot.command("tiempo", async (ctx) => {
     try {
@@ -22,6 +35,10 @@ export function createBot(env: Env): Bot {
     } catch {
       await ctx.reply("No he podido obtener el tiempo. Inténtalo más tarde.");
     }
+  });
+
+  bot.catch((err) => {
+    console.error("Bot error:", err.error);
   });
 
   return bot;
