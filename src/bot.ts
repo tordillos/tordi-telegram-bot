@@ -14,9 +14,7 @@ export function createBot(env: Env): Bot {
 
   bot.command("start", async (ctx) => {
     console.log(`/start from chat ${ctx.chat?.id}`);
-    await ctx.reply(
-      "Bot de noticias de Tordillos activo. Monitorizo La Gaceta de Salamanca y Noticias a Tiempo."
-    );
+    await ctx.reply("Bot de noticias de Tordillos activo.");
   });
 
   bot.command("status", async (ctx) => {
