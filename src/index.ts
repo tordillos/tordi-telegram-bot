@@ -25,12 +25,27 @@ export default {
       });
     }
 
+    // Debug endpoint: check webhook status
+    if (url.pathname === "/webhookinfo") {
+      const telegramUrl = `https://api.telegram.org/bot${env.BOT_TOKEN}/getWebhookInfo`;
+      const response = await fetch(telegramUrl);
+      const result = await response.json();
+      return new Response(JSON.stringify(result, null, 2), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     // Webhook endpoint: handle Telegram updates
     if (url.pathname === "/webhook" && request.method === "POST") {
-      const bot = createBot(env);
-      setupForwarder(bot, env);
-      const handler = createWebhookHandler(bot);
-      return handler(request);
+      try {
+        const bot = createBot(env);
+        setupForwarder(bot, env);
+        const handler = createWebhookHandler(bot);
+        return await handler(request);
+      } catch (err) {
+        console.error("Webhook error:", err);
+        return new Response("OK", { status: 200 });
+      }
     }
 
     return new Response("Tordi Telegram Bot is running", { status: 200 });
