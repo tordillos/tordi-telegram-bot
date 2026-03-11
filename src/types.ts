@@ -11,4 +11,5 @@ export interface NewsArticle {
   summary: string;
   source: string;
   publishedAt: string;
+  imageUrl?: string;
 }

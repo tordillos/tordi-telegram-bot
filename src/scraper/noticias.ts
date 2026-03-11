@@ -16,6 +16,18 @@ async function tryRssFeeds(): Promise<NewsArticle[]> {
   return [];
 }
 
+function findNearbyImage(html: string, linkIndex: number): string | undefined {
+  // Look for an <img> tag within ~500 chars before the link (typically in the same article card)
+  const searchStart = Math.max(0, linkIndex - 500);
+  const context = html.substring(searchStart, linkIndex);
+  const imgMatches = [...context.matchAll(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi)];
+  if (imgMatches.length > 0) {
+    const src = imgMatches[imgMatches.length - 1][1];
+    if (src.startsWith("http")) return src;
+  }
+  return undefined;
+}
+
 function extractArticlesFromHtml(html: string): NewsArticle[] {
   const articles: NewsArticle[] = [];
   // Match anchor tags with href containing the base domain and article-like paths
@@ -39,12 +51,14 @@ function extractArticlesFromHtml(html: string): NewsArticle[] {
     }
 
     seenUrls.add(url);
+    const imageUrl = findNearbyImage(html, match.index);
     articles.push({
       title,
       url,
       summary: "",
       source: "Noticias a Tiempo",
       publishedAt: "",
+      imageUrl,
     });
   }
 

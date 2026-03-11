@@ -77,7 +77,7 @@ export async function sendNewsToGroup(
   chatId: string,
   article: NewsArticle
 ) {
-  const message = [
+  const caption = [
     `<b>${escapeHtml(article.title)}</b>`,
     "",
     article.summary ? escapeHtml(article.summary) : "",
@@ -88,7 +88,19 @@ export async function sendNewsToGroup(
     .filter(Boolean)
     .join("\n");
 
-  await sendMessageWithMigration(bot, chatId, message, { parse_mode: "HTML" });
+  if (article.imageUrl) {
+    try {
+      await bot.api.sendPhoto(chatId, article.imageUrl, {
+        caption,
+        parse_mode: "HTML",
+      });
+      return;
+    } catch (err) {
+      console.error("Failed to send photo, falling back to text:", err);
+    }
+  }
+
+  await sendMessageWithMigration(bot, chatId, caption, { parse_mode: "HTML" });
 }
 
 function escapeHtml(text: string): string {

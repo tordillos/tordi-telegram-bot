@@ -10,6 +10,34 @@ function extractTag(xml: string, tag: string): string {
   return match ? match[1].trim() : "";
 }
 
+function extractImageUrl(xml: string): string | undefined {
+  // <media:content url="..."> or <media:content url="..." medium="image">
+  const mediaContent = xml.match(
+    /<media:content[^>]+url=["']([^"']+)["'][^>]*>/
+  );
+  if (mediaContent) return mediaContent[1];
+
+  // <enclosure url="..." type="image/...">
+  const enclosure = xml.match(
+    /<enclosure[^>]+url=["']([^"']+)["'][^>]+type=["']image\/[^"']+["'][^>]*>/
+  );
+  if (enclosure) return enclosure[1];
+
+  // Also check enclosure with type before url
+  const enclosure2 = xml.match(
+    /<enclosure[^>]+type=["']image\/[^"']+["'][^>]+url=["']([^"']+)["'][^>]*>/
+  );
+  if (enclosure2) return enclosure2[1];
+
+  // <media:thumbnail url="...">
+  const thumbnail = xml.match(
+    /<media:thumbnail[^>]+url=["']([^"']+)["'][^>]*>/
+  );
+  if (thumbnail) return thumbnail[1];
+
+  return undefined;
+}
+
 function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, "").trim();
 }
@@ -27,7 +55,8 @@ export function parseRssFeed(xml: string, source: string): NewsArticle[] {
     const publishedAt = extractTag(itemXml, "pubDate");
 
     if (title && url) {
-      articles.push({ title, url, summary, source, publishedAt });
+      const imageUrl = extractImageUrl(itemXml);
+      articles.push({ title, url, summary, source, publishedAt, imageUrl });
     }
   }
 
