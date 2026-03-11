@@ -1,6 +1,7 @@
 import { Env } from "./types";
 import { createBot, createWebhookHandler, sendNewsToGroup } from "./bot";
 import { setupForwarder } from "./forwarder";
+import { getWeather } from "./weather";
 import {
   fetchGacetaNews,
   markAsSent as markGacetaSent,
@@ -56,13 +57,36 @@ export default {
   },
 
   async scheduled(
-    _event: ScheduledEvent,
+    event: ScheduledEvent,
     env: Env,
     ctx: ExecutionContext
   ): Promise<void> {
-    ctx.waitUntil(processNews(env));
+    // Daily weather at 7:00 UTC (9:00 CEST / 8:00 CET)
+    if (event.cron === "0 7 * * *") {
+      ctx.waitUntil(sendDailyWeather(env));
+    } else {
+      ctx.waitUntil(processNews(env));
+    }
   },
 };
+
+async function sendDailyWeather(env: Env) {
+  if (!env.GROUP_CHAT_ID) {
+    console.error("GROUP_CHAT_ID not configured, skipping weather");
+    return;
+  }
+
+  try {
+    const bot = createBot(env);
+    const message = await getWeather();
+    await bot.api.sendMessage(env.GROUP_CHAT_ID, message, {
+      parse_mode: "HTML",
+    });
+    console.log("Daily weather sent to group");
+  } catch (err) {
+    console.error("Daily weather error:", err);
+  }
+}
 
 async function processNews(env: Env) {
   if (!env.GROUP_CHAT_ID) {
