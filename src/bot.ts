@@ -1,5 +1,6 @@
 import { Bot, webhookCallback } from "grammy";
 import { Env, NewsArticle } from "./types";
+import { getWeather } from "./weather";
 
 export function createBot(env: Env): Bot {
   const bot = new Bot(env.BOT_TOKEN);
@@ -13,6 +14,15 @@ export function createBot(env: Env): Bot {
   bot.command("status", (ctx) =>
     ctx.reply("El bot está funcionando correctamente.")
   );
+
+  bot.command("tiempo", async (ctx) => {
+    try {
+      const message = await getWeather();
+      await ctx.reply(message, { parse_mode: "HTML" });
+    } catch {
+      await ctx.reply("No he podido obtener el tiempo. Inténtalo más tarde.");
+    }
+  });
 
   return bot;
 }
