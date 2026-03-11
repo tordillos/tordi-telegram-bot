@@ -1,4 +1,4 @@
-import { Bot, webhookCallback } from "grammy";
+import { Bot, GrammyError, webhookCallback } from "grammy";
 import { Env, NewsArticle } from "./types";
 import { getWeather } from "./weather";
 
@@ -46,6 +46,32 @@ export function createWebhookHandler(bot: Bot) {
   return webhookCallback(bot, "cloudflare-mod");
 }
 
+export async function sendMessageWithMigration(
+  bot: Bot,
+  chatId: string | number,
+  text: string,
+  options?: { parse_mode?: "HTML" }
+) {
+  try {
+    await bot.api.sendMessage(chatId, text, options);
+  } catch (err) {
+    if (
+      err instanceof GrammyError &&
+      err.description.includes("upgraded to a supergroup chat")
+    ) {
+      const newChatId = err.parameters?.migrate_to_chat_id;
+      if (newChatId) {
+        console.log(
+          `Chat migrated from ${chatId} to ${newChatId}. Update GROUP_CHAT_ID!`
+        );
+        await bot.api.sendMessage(newChatId, text, options);
+        return;
+      }
+    }
+    throw err;
+  }
+}
+
 export async function sendNewsToGroup(
   bot: Bot,
   chatId: string,
@@ -62,7 +88,7 @@ export async function sendNewsToGroup(
     .filter(Boolean)
     .join("\n");
 
-  await bot.api.sendMessage(chatId, message, { parse_mode: "HTML" });
+  await sendMessageWithMigration(bot, chatId, message, { parse_mode: "HTML" });
 }
 
 function escapeHtml(text: string): string {

@@ -1,5 +1,10 @@
 import { Env } from "./types";
-import { createBot, createWebhookHandler, sendNewsToGroup } from "./bot";
+import {
+  createBot,
+  createWebhookHandler,
+  sendMessageWithMigration,
+  sendNewsToGroup,
+} from "./bot";
 import { setupForwarder } from "./forwarder";
 import { getWeather } from "./weather";
 import {
@@ -79,7 +84,7 @@ async function sendDailyWeather(env: Env) {
   try {
     const bot = createBot(env);
     const message = await getWeather();
-    await bot.api.sendMessage(env.GROUP_CHAT_ID, message, {
+    await sendMessageWithMigration(bot, env.GROUP_CHAT_ID, message, {
       parse_mode: "HTML",
     });
     console.log("Daily weather sent to group");
