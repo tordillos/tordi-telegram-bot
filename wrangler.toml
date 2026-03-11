@@ -8,8 +8,12 @@ crons = ["0 * * * *"]
 
 [[kv_namespaces]]
 binding = "NEWS_KV"
+# Crear con: npx wrangler kv namespace create NEWS_KV
+# Luego pegar el id aquí
 id = "REPLACE_WITH_KV_NAMESPACE_ID"
 
 [vars]
+# Obtener con: enviar /start al bot en el grupo y revisar los logs
 GROUP_CHAT_ID = ""
+# ID del canal fuente para reenvío de mensajes
 SOURCE_CHANNEL_ID = ""
