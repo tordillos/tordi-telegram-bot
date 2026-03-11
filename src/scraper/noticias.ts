@@ -3,6 +3,8 @@ import { fetchRss } from "./rss";
 
 const BASE_URL = "https://noticiasatiempo.es";
 const RSS_PATHS = ["/feed", "/rss", "/feed.xml", "/rss.xml"];
+const BROWSER_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 async function tryRssFeeds(): Promise<NewsArticle[]> {
   for (const path of RSS_PATHS) {
@@ -53,8 +55,7 @@ async function scrapeHomepage(): Promise<NewsArticle[]> {
   try {
     const response = await fetch(BASE_URL, {
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; TordiBot/1.0; +https://github.com/tordillos/tordi-telegram-bot)",
+        "User-Agent": BROWSER_UA,
         Accept: "text/html",
       },
     });
