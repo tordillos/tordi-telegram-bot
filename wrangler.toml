@@ -19,7 +19,7 @@ GROUP_CHAT_ID = ""
 SOURCE_CHANNEL_ID = ""
 
 [observability]
-enabled = false
+enabled = true
 head_sampling_rate = 1
 
 [observability.logs]

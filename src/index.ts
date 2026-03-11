@@ -38,12 +38,16 @@ export default {
     // Webhook endpoint: handle Telegram updates
     if (url.pathname === "/webhook" && request.method === "POST") {
       try {
+        const body = await request.clone().text();
+        console.log("Webhook received:", body);
         const bot = createBot(env);
         setupForwarder(bot, env);
         const handler = createWebhookHandler(bot);
         return await handler(request);
       } catch (err) {
-        console.error("Webhook error:", err);
+        const message = err instanceof Error ? err.message : String(err);
+        const stack = err instanceof Error ? err.stack : "";
+        console.error("Webhook error:", message, stack);
         return new Response("OK", { status: 200 });
       }
     }
