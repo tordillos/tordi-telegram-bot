@@ -34,7 +34,7 @@ Bot de Telegram que agrega noticias de Tordillos (Salamanca) desde La Gaceta y N
 npx wrangler kv namespace create NEWS_KV
 ```
 
-Copia el `id` que aparece en el output y pégalo en `wrangler.toml` reemplazando `REPLACE_WITH_KV_NAMESPACE_ID`.
+Copia el `id` que aparece en el output y guárdalo para configurarlo como GitHub Secret.
 
 ### 3. Obtener IDs de Telegram
 
@@ -50,7 +50,7 @@ Copia el `id` que aparece en el output y pégalo en `wrangler.toml` reemplazando
 1. Reenvía un mensaje del canal a [@userinfobot](https://t.me/userinfobot)
 2. El bot te dará el ID del canal
 
-Pon ambos valores en `wrangler.toml` en la sección `[vars]`.
+Guarda ambos valores para configurarlos como GitHub Secrets.
 
 ### 4. Configurar GitHub Secrets
 
@@ -61,6 +61,9 @@ En tu repositorio de GitHub, ve a **Settings** > **Secrets and variables** > **A
 | `CLOUDFLARE_API_TOKEN` | Token de API de Cloudflare (paso 2) |
 | `CLOUDFLARE_ACCOUNT_ID` | Account ID de Cloudflare (paso 2) |
 | `BOT_TOKEN` | Token del bot de Telegram (paso 1) |
+| `REPLACE_WITH_KV_NAMESPACE_ID` | ID del KV namespace (paso 2) |
+| `GROUP_CHAT_ID` | ID del grupo de Telegram (paso 3) |
+| `SOURCE_CHANNEL_ID` | ID del canal fuente (paso 3) |
 
 ### 5. Configurar el webhook del bot
 
@@ -76,7 +79,8 @@ El deploy es automático: cada push a `main` dispara GitHub Actions que:
 
 1. Instala dependencias
 2. Verifica tipos con TypeScript
-3. Deploya a Cloudflare Workers
+3. Inyecta los secrets en `wrangler.toml` (KV namespace, GROUP_CHAT_ID, SOURCE_CHANNEL_ID)
+4. Deploya a Cloudflare Workers
 
 También puedes deployar manualmente:
 

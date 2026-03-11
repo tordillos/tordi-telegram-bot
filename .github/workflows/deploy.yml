@@ -24,6 +24,12 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
+      - name: Replace secrets in wrangler.toml
+        run: |
+          sed -i "s/REPLACE_WITH_KV_NAMESPACE_ID/${{ secrets.REPLACE_WITH_KV_NAMESPACE_ID }}/" wrangler.toml
+          sed -i "s/GROUP_CHAT_ID = \"\"/GROUP_CHAT_ID = \"${{ secrets.GROUP_CHAT_ID }}\"/" wrangler.toml
+          sed -i "s/SOURCE_CHANNEL_ID = \"\"/SOURCE_CHANNEL_ID = \"${{ secrets.SOURCE_CHANNEL_ID }}\"/" wrangler.toml
+
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
