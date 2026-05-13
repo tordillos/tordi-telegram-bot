@@ -144,8 +144,6 @@ export async function fetchNoticiasNews(env: Env): Promise<NewsArticle[]> {
 
 export async function markAsSent(env: Env, articles: NewsArticle[]) {
   for (const article of articles) {
-    await env.NEWS_KV.put(`noticias:${article.url}`, "1", {
-      expirationTtl: 60 * 60 * 24 * 30, // 30 days
-    });
+    await env.NEWS_KV.put(`noticias:${article.url}`, "1");
   }
 }
