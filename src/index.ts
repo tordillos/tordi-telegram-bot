@@ -1,4 +1,4 @@
-import { Env } from "./types";
+import { Env, NewsArticle } from "./types";
 import {
   createBot,
   createWebhookHandler,
@@ -98,6 +98,7 @@ async function processNews(env: Env) {
   }
 
   const bot = createBot(env);
+  const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
   // Fetch news from both sources in parallel
   const [gacetaArticles, noticiasArticles] = await Promise.all([
@@ -111,23 +112,32 @@ async function processNews(env: Env) {
     }),
   ]);
 
-  // Send Gaceta articles (filtered by "tordillos")
-  for (const article of gacetaArticles) {
+  const isRecent = (a: NewsArticle) => {
+    if (!a.publishedAt) return true;
+    const published = new Date(a.publishedAt).getTime();
+    return !isNaN(published) && Date.now() - published < MAX_AGE_MS;
+  };
+
+  const recentGaceta = gacetaArticles.filter(isRecent);
+  const recentNoticias = noticiasArticles.filter(isRecent);
+
+  for (const article of recentGaceta) {
     await sendNewsToGroup(bot, env.GROUP_CHAT_ID, article);
   }
-  if (gacetaArticles.length > 0) {
-    await markGacetaSent(env, gacetaArticles);
+  if (recentGaceta.length > 0) {
+    await markGacetaSent(env, recentGaceta);
   }
 
-  // Send Noticias a Tiempo articles
-  for (const article of noticiasArticles) {
+  for (const article of recentNoticias) {
     await sendNewsToGroup(bot, env.GROUP_CHAT_ID, article);
   }
-  if (noticiasArticles.length > 0) {
-    await markNoticiasSent(env, noticiasArticles);
+  if (recentNoticias.length > 0) {
+    await markNoticiasSent(env, recentNoticias);
   }
 
+  const skippedGaceta = gacetaArticles.length - recentGaceta.length;
+  const skippedNoticias = noticiasArticles.length - recentNoticias.length;
   console.log(
-    `News check complete: ${gacetaArticles.length} gaceta, ${noticiasArticles.length} noticias`
+    `News check complete: ${recentGaceta.length} gaceta, ${recentNoticias.length} noticias (skipped old: ${skippedGaceta} gaceta, ${skippedNoticias} noticias)`
   );
 }
