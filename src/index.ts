@@ -66,8 +66,8 @@ export default {
     env: Env,
     ctx: ExecutionContext
   ): Promise<void> {
-    // Daily weather at 7:00 UTC (9:00 CEST / 8:00 CET)
-    if (event.cron === "0 7 * * *") {
+    // Daily weather at 8:00 UTC (10:00 CEST / 9:00 CET)
+    if (event.cron === "0 8 * * *") {
       ctx.waitUntil(sendDailyWeather(env));
     } else {
       ctx.waitUntil(processNews(env));
