@@ -113,7 +113,7 @@ async function processNews(env: Env) {
   ]);
 
   const isRecent = (a: NewsArticle) => {
-    if (!a.publishedAt) return true;
+    if (!a.publishedAt) return false;
     const published = new Date(a.publishedAt).getTime();
     return !isNaN(published) && Date.now() - published < MAX_AGE_MS;
   };

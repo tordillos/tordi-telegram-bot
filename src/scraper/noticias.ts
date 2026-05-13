@@ -17,6 +17,15 @@ async function tryRssFeeds(): Promise<NewsArticle[]> {
   return [];
 }
 
+function extractDateFromUrl(url: string): string {
+  // URLs like: /2026/03/15/titulo-articulo/
+  const match = url.match(/\/(\d{4})\/(\d{2})\/(\d{2})\//);
+  if (match) {
+    return new Date(`${match[1]}-${match[2]}-${match[3]}T00:00:00Z`).toUTCString();
+  }
+  return "";
+}
+
 function findNearbyImage(html: string, linkIndex: number): string | undefined {
   // Look for an <img> tag within ~500 chars before the link (typically in the same article card)
   const searchStart = Math.max(0, linkIndex - 500);
@@ -58,7 +67,7 @@ function extractArticlesFromHtml(html: string): NewsArticle[] {
       url,
       summary: "",
       source: "Noticias a Tiempo",
-      publishedAt: "",
+      publishedAt: extractDateFromUrl(url),
       imageUrl,
     });
   }
@@ -144,6 +153,8 @@ export async function fetchNoticiasNews(env: Env): Promise<NewsArticle[]> {
 
 export async function markAsSent(env: Env, articles: NewsArticle[]) {
   for (const article of articles) {
-    await env.NEWS_KV.put(`noticias:${article.url}`, "1");
+    await env.NEWS_KV.put(`noticias:${article.url}`, "1", {
+      expirationTtl: 60 * 60 * 24 * 30,
+    });
   }
 }

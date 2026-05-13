@@ -31,6 +31,17 @@ async function matchesInBody(article: NewsArticle): Promise<boolean> {
   }
 }
 
+function extractDateFromUrl(url: string): string {
+  // URLs like: /provincia/lecciones-mondongueras-tordillos-20260315083655-ga.html
+  const match = url.match(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
+  if (match) {
+    return new Date(
+      `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}Z`
+    ).toUTCString();
+  }
+  return "";
+}
+
 async function fetchFromTordillosPage(): Promise<NewsArticle[]> {
   try {
     const response = await fetch(TORDILLOS_PAGE, {
@@ -57,7 +68,7 @@ async function fetchFromTordillosPage(): Promise<NewsArticle[]> {
         url,
         summary: "",
         source: "La Gaceta de Salamanca",
-        publishedAt: "",
+        publishedAt: extractDateFromUrl(url),
       });
     }
 
@@ -140,6 +151,8 @@ export async function fetchGacetaNews(env: Env): Promise<NewsArticle[]> {
 
 export async function markAsSent(env: Env, articles: NewsArticle[]) {
   for (const article of articles) {
-    await env.NEWS_KV.put(`gaceta:${article.url}`, "1");
+    await env.NEWS_KV.put(`gaceta:${article.url}`, "1", {
+      expirationTtl: 60 * 60 * 24 * 30,
+    });
   }
 }
