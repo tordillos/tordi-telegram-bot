@@ -3,6 +3,7 @@ import { fetchRss } from "./rss";
 
 const BASE_URL = "https://noticiasatiempo.es";
 const RSS_PATHS = ["/feed", "/rss", "/feed.xml", "/rss.xml"];
+const KEYWORD = "tordillos";
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
@@ -87,6 +88,25 @@ async function scrapeHomepage(): Promise<NewsArticle[]> {
   }
 }
 
+function matchesInTitleOrSummary(article: NewsArticle): boolean {
+  const text = `${article.title} ${article.summary}`.toLowerCase();
+  return text.includes(KEYWORD);
+}
+
+async function matchesInBody(article: NewsArticle): Promise<boolean> {
+  try {
+    const response = await fetch(article.url, {
+      headers: { "User-Agent": BROWSER_UA },
+    });
+    if (!response.ok) return false;
+    const html = await response.text();
+    return html.toLowerCase().includes(KEYWORD);
+  } catch (err) {
+    console.error(`Failed to fetch article body: ${article.url}`, err);
+    return false;
+  }
+}
+
 export async function fetchNoticiasNews(env: Env): Promise<NewsArticle[]> {
   let articles = await tryRssFeeds();
 
@@ -94,8 +114,25 @@ export async function fetchNoticiasNews(env: Env): Promise<NewsArticle[]> {
     articles = await scrapeHomepage();
   }
 
+  const matchedByHeader = articles.filter(matchesInTitleOrSummary);
+  const notMatchedByHeader = articles.filter(
+    (a) => !matchesInTitleOrSummary(a)
+  );
+
+  const bodyChecks = await Promise.all(
+    notMatchedByHeader.map(async (article) => ({
+      article,
+      matches: await matchesInBody(article),
+    }))
+  );
+  const matchedByBody = bodyChecks
+    .filter((r) => r.matches)
+    .map((r) => r.article);
+
+  const filtered = [...matchedByHeader, ...matchedByBody];
+
   const newArticles: NewsArticle[] = [];
-  for (const article of articles) {
+  for (const article of filtered) {
     const existing = await env.NEWS_KV.get(`noticias:${article.url}`);
     if (!existing) {
       newArticles.push(article);
