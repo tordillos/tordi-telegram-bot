@@ -107,11 +107,8 @@ export async function fetchGacetaNews(env: Env): Promise<NewsArticle[]> {
 
   console.log(`Gaceta: ${allArticles.length} total articles from all sources`);
 
-  // Filter by keyword: title/summary only (no body fetch to avoid excessive requests)
-  const tordillosKeys = new Set(tordillosArticles.map(articleKey));
-  const filtered = allArticles.filter(
-    (a) => matchesInTitleOrSummary(a) || tordillosKeys.has(articleKey(a))
-  );
+  // Filter by keyword in title/summary only
+  const filtered = allArticles.filter(matchesInTitleOrSummary);
 
   const newArticles: NewsArticle[] = [];
   for (const article of filtered) {
