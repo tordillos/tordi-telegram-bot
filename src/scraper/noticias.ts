@@ -7,6 +7,16 @@ const KEYWORD = "tordillos";
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
+function articleKey(article: NewsArticle): string {
+  try {
+    const path = new URL(article.url).pathname.replace(/\/$/, "");
+    const slug = path.split("/").pop() || path;
+    return slug;
+  } catch {
+    return article.url;
+  }
+}
+
 async function tryRssFeeds(): Promise<NewsArticle[]> {
   for (const path of RSS_PATHS) {
     const articles = await fetchRss(`${BASE_URL}${path}`, "Noticias a Tiempo");
@@ -18,7 +28,6 @@ async function tryRssFeeds(): Promise<NewsArticle[]> {
 }
 
 function extractDateFromUrl(url: string): string {
-  // URLs like: /2026/03/15/titulo-articulo/
   const match = url.match(/\/(\d{4})\/(\d{2})\/(\d{2})\//);
   if (match) {
     return new Date(`${match[1]}-${match[2]}-${match[3]}T00:00:00Z`).toUTCString();
@@ -27,7 +36,6 @@ function extractDateFromUrl(url: string): string {
 }
 
 function findNearbyImage(html: string, linkIndex: number): string | undefined {
-  // Look for an <img> tag within ~500 chars before the link (typically in the same article card)
   const searchStart = Math.max(0, linkIndex - 500);
   const context = html.substring(searchStart, linkIndex);
   const imgMatches = [...context.matchAll(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi)];
@@ -40,36 +48,35 @@ function findNearbyImage(html: string, linkIndex: number): string | undefined {
 
 function extractArticlesFromHtml(html: string): NewsArticle[] {
   const articles: NewsArticle[] = [];
-  // Match anchor tags with href containing the base domain and article-like paths
   const linkRegex =
     /<a[^>]+href=["'](https?:\/\/(?:www\.)?noticiasatiempo\.es\/[^"']+)["'][^>]*>([^<]*)<\/a>/gi;
   let match;
-  const seenUrls = new Set<string>();
+  const seenKeys = new Set<string>();
 
   while ((match = linkRegex.exec(html)) !== null) {
     const url = match[1];
     const title = match[2].trim();
 
-    // Skip navigation/category links, only take article-like URLs
     if (
       !title ||
       title.length < 10 ||
-      seenUrls.has(url) ||
-      url.endsWith("/") && url.split("/").length <= 4
+      (url.endsWith("/") && url.split("/").length <= 4)
     ) {
       continue;
     }
 
-    seenUrls.add(url);
-    const imageUrl = findNearbyImage(html, match.index);
-    articles.push({
+    const article: NewsArticle = {
       title,
       url,
       summary: "",
       source: "Noticias a Tiempo",
       publishedAt: extractDateFromUrl(url),
-      imageUrl,
-    });
+      imageUrl: findNearbyImage(html, match.index),
+    };
+    const key = articleKey(article);
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
+    articles.push(article);
   }
 
   return articles;
@@ -78,10 +85,7 @@ function extractArticlesFromHtml(html: string): NewsArticle[] {
 async function scrapeHomepage(): Promise<NewsArticle[]> {
   try {
     const response = await fetch(BASE_URL, {
-      headers: {
-        "User-Agent": BROWSER_UA,
-        Accept: "text/html",
-      },
+      headers: { "User-Agent": BROWSER_UA, Accept: "text/html" },
     });
 
     if (!response.ok) {
@@ -97,23 +101,9 @@ async function scrapeHomepage(): Promise<NewsArticle[]> {
   }
 }
 
-function matchesInTitleOrSummary(article: NewsArticle): boolean {
+function matchesKeyword(article: NewsArticle): boolean {
   const text = `${article.title} ${article.summary}`.toLowerCase();
   return text.includes(KEYWORD);
-}
-
-async function matchesInBody(article: NewsArticle): Promise<boolean> {
-  try {
-    const response = await fetch(article.url, {
-      headers: { "User-Agent": BROWSER_UA },
-    });
-    if (!response.ok) return false;
-    const html = await response.text();
-    return html.toLowerCase().includes(KEYWORD);
-  } catch (err) {
-    console.error(`Failed to fetch article body: ${article.url}`, err);
-    return false;
-  }
 }
 
 export async function fetchNoticiasNews(env: Env): Promise<NewsArticle[]> {
@@ -123,26 +113,12 @@ export async function fetchNoticiasNews(env: Env): Promise<NewsArticle[]> {
     articles = await scrapeHomepage();
   }
 
-  const matchedByHeader = articles.filter(matchesInTitleOrSummary);
-  const notMatchedByHeader = articles.filter(
-    (a) => !matchesInTitleOrSummary(a)
-  );
-
-  const bodyChecks = await Promise.all(
-    notMatchedByHeader.map(async (article) => ({
-      article,
-      matches: await matchesInBody(article),
-    }))
-  );
-  const matchedByBody = bodyChecks
-    .filter((r) => r.matches)
-    .map((r) => r.article);
-
-  const filtered = [...matchedByHeader, ...matchedByBody];
+  const filtered = articles.filter(matchesKeyword);
 
   const newArticles: NewsArticle[] = [];
   for (const article of filtered) {
-    const existing = await env.NEWS_KV.get(`noticias:${article.url}`);
+    const key = articleKey(article);
+    const existing = await env.NEWS_KV.get(`noticias:${key}`);
     if (!existing) {
       newArticles.push(article);
     }
@@ -153,7 +129,8 @@ export async function fetchNoticiasNews(env: Env): Promise<NewsArticle[]> {
 
 export async function markAsSent(env: Env, articles: NewsArticle[]) {
   for (const article of articles) {
-    await env.NEWS_KV.put(`noticias:${article.url}`, "1", {
+    const key = articleKey(article);
+    await env.NEWS_KV.put(`noticias:${key}`, "1", {
       expirationTtl: 60 * 60 * 24 * 30,
     });
   }
