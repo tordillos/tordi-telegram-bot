@@ -50,8 +50,14 @@ async function fetchFromTordillosPage(): Promise<NewsArticle[]> {
     }
     const html = await response.text();
     const articles: NewsArticle[] = [];
+    // Only match real article URLs (they end in a 14-digit timestamp + code,
+    // e.g. "...-20260315083655-ga.html"). This excludes non-article links that
+    // also appear on the topic page, such as related-topic pages
+    // (/temas/lugares/el-campo-de-penaranda.html), author pages, hemeroteca
+    // entries, etc. Without this, those links slipped past the keyword filter
+    // via tordillosKeys and got sent as if they were Tordillos news.
     const linkRegex =
-      /<a[^>]+href=["'](https?:\/\/(?:www\.)?lagacetadesalamanca\.es\/[^"']+\.html)["'][^>]*>([^<]+)<\/a>/gi;
+      /<a[^>]+href=["'](https?:\/\/(?:www\.)?lagacetadesalamanca\.es\/[^"']+-\d{14}-\w+\.html)["'][^>]*>([^<]+)<\/a>/gi;
     const seenKeys = new Set<string>();
     let match;
 
