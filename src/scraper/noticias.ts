@@ -2,10 +2,20 @@ import { Env, NewsArticle } from "../types";
 import { fetchRss } from "./rss";
 
 const BASE_URL = "https://noticiasatiempo.es";
-const RSS_PATHS = ["/feed", "/rss", "/feed.xml", "/rss.xml"];
 const KEYWORD = "tordillos";
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+const TORDILLOS_FEEDS = [
+  `${BASE_URL}/tag/tordillos/feed/`,
+  `${BASE_URL}/etiqueta/tordillos/feed/`,
+];
+const TORDILLOS_PAGES = [
+  `${BASE_URL}/tag/tordillos/`,
+  `${BASE_URL}/etiqueta/tordillos/`,
+  `${BASE_URL}/?s=tordillos`,
+];
+const GENERAL_RSS_PATHS = ["/feed", "/rss", "/feed.xml"];
 
 function articleKey(article: NewsArticle): string {
   try {
@@ -17,26 +27,18 @@ function articleKey(article: NewsArticle): string {
   }
 }
 
-async function tryRssFeeds(): Promise<NewsArticle[]> {
-  for (const path of RSS_PATHS) {
-    const articles = await fetchRss(`${BASE_URL}${path}`, "Noticias a Tiempo");
-    if (articles.length > 0) {
-      return articles;
-    }
-  }
-  return [];
-}
-
 function extractDateFromUrl(url: string): string {
-  // Format: /YYYY/MM/DD/
   const slashed = url.match(/\/(\d{4})\/(\d{2})\/(\d{2})\//);
   if (slashed) {
-    return new Date(`${slashed[1]}-${slashed[2]}-${slashed[3]}T00:00:00Z`).toUTCString();
+    return new Date(
+      `${slashed[1]}-${slashed[2]}-${slashed[3]}T00:00:00Z`
+    ).toUTCString();
   }
-  // Format: /YYYYMMDD/ (noticiasatiempo.es uses this)
   const compact = url.match(/\/(\d{4})(\d{2})(\d{2})\//);
   if (compact) {
-    return new Date(`${compact[1]}-${compact[2]}-${compact[3]}T00:00:00Z`).toUTCString();
+    return new Date(
+      `${compact[1]}-${compact[2]}-${compact[3]}T00:00:00Z`
+    ).toUTCString();
   }
   return "";
 }
@@ -44,7 +46,9 @@ function extractDateFromUrl(url: string): string {
 function findNearbyImage(html: string, linkIndex: number): string | undefined {
   const searchStart = Math.max(0, linkIndex - 500);
   const context = html.substring(searchStart, linkIndex);
-  const imgMatches = [...context.matchAll(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi)];
+  const imgMatches = [
+    ...context.matchAll(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi),
+  ];
   if (imgMatches.length > 0) {
     const src = imgMatches[imgMatches.length - 1][1];
     if (src.startsWith("http")) return src;
@@ -88,23 +92,59 @@ function extractArticlesFromHtml(html: string): NewsArticle[] {
   return articles;
 }
 
-async function scrapeHomepage(): Promise<NewsArticle[]> {
+async function fetchPage(url: string): Promise<NewsArticle[]> {
   try {
-    const response = await fetch(BASE_URL, {
+    const response = await fetch(url, {
       headers: { "User-Agent": BROWSER_UA, Accept: "text/html" },
     });
-
-    if (!response.ok) {
-      console.error(`Homepage scrape failed: ${response.status}`);
-      return [];
-    }
-
+    if (!response.ok) return [];
     const html = await response.text();
     return extractArticlesFromHtml(html);
-  } catch (error) {
-    console.error("Homepage scrape error:", error);
+  } catch {
     return [];
   }
+}
+
+async function tryTordillosFeeds(): Promise<{
+  articles: NewsArticle[];
+  source: string;
+}> {
+  for (const feedUrl of TORDILLOS_FEEDS) {
+    const articles = await fetchRss(feedUrl, "Noticias a Tiempo");
+    if (articles.length > 0) {
+      return { articles, source: `rss-tag(${feedUrl})` };
+    }
+  }
+  return { articles: [], source: "" };
+}
+
+async function tryTordillosPages(): Promise<{
+  articles: NewsArticle[];
+  source: string;
+}> {
+  for (const pageUrl of TORDILLOS_PAGES) {
+    const articles = await fetchPage(pageUrl);
+    if (articles.length > 0) {
+      return { articles, source: `html-tag(${pageUrl})` };
+    }
+  }
+  return { articles: [], source: "" };
+}
+
+async function tryGeneralRss(): Promise<{
+  articles: NewsArticle[];
+  source: string;
+}> {
+  for (const path of GENERAL_RSS_PATHS) {
+    const articles = await fetchRss(
+      `${BASE_URL}${path}`,
+      "Noticias a Tiempo"
+    );
+    if (articles.length > 0) {
+      return { articles, source: `rss(${path})` };
+    }
+  }
+  return { articles: [], source: "" };
 }
 
 function matchesKeyword(article: NewsArticle): boolean {
@@ -114,11 +154,38 @@ function matchesKeyword(article: NewsArticle): boolean {
 }
 
 export async function fetchNoticiasNews(env: Env): Promise<NewsArticle[]> {
-  let articles = await tryRssFeeds();
-  const source = articles.length > 0 ? "rss" : "html";
+  let articles: NewsArticle[] = [];
+  let source = "none";
 
+  // 1. Try Tordillos-specific RSS feeds
+  const tagFeed = await tryTordillosFeeds();
+  if (tagFeed.articles.length > 0) {
+    articles = tagFeed.articles;
+    source = tagFeed.source;
+  }
+
+  // 2. Try Tordillos tag/search pages
   if (articles.length === 0) {
-    articles = await scrapeHomepage();
+    const tagPage = await tryTordillosPages();
+    if (tagPage.articles.length > 0) {
+      articles = tagPage.articles;
+      source = tagPage.source;
+    }
+  }
+
+  // 3. Fallback: general RSS
+  if (articles.length === 0) {
+    const general = await tryGeneralRss();
+    if (general.articles.length > 0) {
+      articles = general.articles;
+      source = general.source;
+    }
+  }
+
+  // 4. Fallback: homepage scrape
+  if (articles.length === 0) {
+    articles = await fetchPage(BASE_URL);
+    source = "html-homepage";
   }
 
   const filtered = articles.filter(matchesKeyword);
