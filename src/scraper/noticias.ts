@@ -28,9 +28,15 @@ async function tryRssFeeds(): Promise<NewsArticle[]> {
 }
 
 function extractDateFromUrl(url: string): string {
-  const match = url.match(/\/(\d{4})\/(\d{2})\/(\d{2})\//);
-  if (match) {
-    return new Date(`${match[1]}-${match[2]}-${match[3]}T00:00:00Z`).toUTCString();
+  // Format: /YYYY/MM/DD/
+  const slashed = url.match(/\/(\d{4})\/(\d{2})\/(\d{2})\//);
+  if (slashed) {
+    return new Date(`${slashed[1]}-${slashed[2]}-${slashed[3]}T00:00:00Z`).toUTCString();
+  }
+  // Format: /YYYYMMDD/ (noticiasatiempo.es uses this)
+  const compact = url.match(/\/(\d{4})(\d{2})(\d{2})\//);
+  if (compact) {
+    return new Date(`${compact[1]}-${compact[2]}-${compact[3]}T00:00:00Z`).toUTCString();
   }
   return "";
 }
