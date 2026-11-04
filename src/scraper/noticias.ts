@@ -102,12 +102,14 @@ async function scrapeHomepage(): Promise<NewsArticle[]> {
 }
 
 function matchesKeyword(article: NewsArticle): boolean {
-  const text = `${article.title} ${article.summary}`.toLowerCase();
+  const text =
+    `${article.title} ${article.summary} ${article.url}`.toLowerCase();
   return text.includes(KEYWORD);
 }
 
 export async function fetchNoticiasNews(env: Env): Promise<NewsArticle[]> {
   let articles = await tryRssFeeds();
+  const source = articles.length > 0 ? "rss" : "html";
 
   if (articles.length === 0) {
     articles = await scrapeHomepage();
@@ -124,6 +126,9 @@ export async function fetchNoticiasNews(env: Env): Promise<NewsArticle[]> {
     }
   }
 
+  console.log(
+    `Noticias: ${articles.length} from ${source}, ${filtered.length} matched keyword, ${newArticles.length} new`
+  );
   return newArticles;
 }
 
