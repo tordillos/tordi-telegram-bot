@@ -16,6 +16,14 @@ import {
 } from "./scraper/noticias";
 import packageJson from "../package.json";
 
+const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+function isRecent(a: NewsArticle): boolean {
+  if (!a.publishedAt) return true;
+  const published = new Date(a.publishedAt).getTime();
+  return isNaN(published) || Date.now() - published < MAX_AGE_MS;
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -54,12 +62,22 @@ export default {
       if (url.searchParams.get("token") !== env.BOT_TOKEN) {
         return new Response("Unauthorized", { status: 401 });
       }
-      const [gaceta, noticias] = await Promise.all([
+      const [gacetaAll, noticiasAll] = await Promise.all([
         fetchGacetaNews(env).catch(() => []),
         fetchNoticiasNews(env).catch(() => []),
       ]);
+      const gaceta = gacetaAll.filter(isRecent);
+      const noticias = noticiasAll.filter(isRecent);
       return new Response(
-        JSON.stringify({ version: packageJson.version, gaceta, noticias }, null, 2),
+        JSON.stringify({
+          version: packageJson.version,
+          gaceta,
+          noticias,
+          skippedOld: {
+            gaceta: gacetaAll.length - gaceta.length,
+            noticias: noticiasAll.length - noticias.length,
+          },
+        }, null, 2),
         { headers: { "Content-Type": "application/json" } }
       );
     }
@@ -122,9 +140,7 @@ async function processNews(env: Env) {
   }
 
   const bot = createBot(env);
-  const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
-  // Fetch news from both sources in parallel
   const [gacetaArticles, noticiasArticles] = await Promise.all([
     fetchGacetaNews(env).catch((err) => {
       console.error("Gaceta fetch error:", err);
@@ -135,12 +151,6 @@ async function processNews(env: Env) {
       return [];
     }),
   ]);
-
-  const isRecent = (a: NewsArticle) => {
-    if (!a.publishedAt) return false;
-    const published = new Date(a.publishedAt).getTime();
-    return !isNaN(published) && Date.now() - published < MAX_AGE_MS;
-  };
 
   const recentGaceta = gacetaArticles.filter(isRecent);
   const recentNoticias = noticiasArticles.filter(isRecent);
