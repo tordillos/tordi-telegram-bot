@@ -14,6 +14,7 @@ import {
   fetchNoticiasNews,
   markAsSent as markNoticiasSent,
 } from "./scraper/noticias";
+import packageJson from "../package.json";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -38,6 +39,29 @@ export default {
       return new Response(JSON.stringify(result, null, 2), {
         headers: { "Content-Type": "application/json" },
       });
+    }
+
+    // Version endpoint
+    if (url.pathname === "/version") {
+      return new Response(
+        JSON.stringify({ version: packageJson.version }),
+        { headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Test endpoint: dry-run scrapers to see what would be sent
+    if (url.pathname === "/test-news") {
+      if (url.searchParams.get("token") !== env.BOT_TOKEN) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      const [gaceta, noticias] = await Promise.all([
+        fetchGacetaNews(env).catch(() => []),
+        fetchNoticiasNews(env).catch(() => []),
+      ]);
+      return new Response(
+        JSON.stringify({ version: packageJson.version, gaceta, noticias }, null, 2),
+        { headers: { "Content-Type": "application/json" } }
+      );
     }
 
     // Webhook endpoint: handle Telegram updates
