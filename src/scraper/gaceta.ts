@@ -1,11 +1,5 @@
 import { Env, NewsArticle } from "../types";
-import { fetchRss } from "./rss";
 
-const GACETA_RSS_FEEDS = [
-  "https://www.lagacetadesalamanca.es/rss/",
-  "https://www.lagacetadesalamanca.es/rss/provincia/",
-  "https://www.lagacetadesalamanca.es/rss/salamanca/",
-];
 const TORDILLOS_PAGE =
   "https://www.lagacetadesalamanca.es/temas/lugares/tordillos.html";
 const KEYWORD = "tordillos";
@@ -24,8 +18,9 @@ function articleKey(article: NewsArticle): string {
   }
 }
 
-function matchesInTitleOrSummary(article: NewsArticle): boolean {
-  const text = `${article.title} ${article.summary}`.toLowerCase();
+function matchesKeyword(article: NewsArticle): boolean {
+  const text =
+    `${article.title} ${article.summary} ${article.url}`.toLowerCase();
   return text.includes(KEYWORD);
 }
 
@@ -87,37 +82,8 @@ async function fetchFromTordillosPage(): Promise<NewsArticle[]> {
 }
 
 export async function fetchGacetaNews(env: Env): Promise<NewsArticle[]> {
-  const rssResults = await Promise.all(
-    GACETA_RSS_FEEDS.map((feed) =>
-      fetchRss(feed, "La Gaceta de Salamanca").catch((err) => {
-        console.error(`RSS fetch error for ${feed}:`, err);
-        return [];
-      })
-    )
-  );
-
-  const tordillosArticles = await fetchFromTordillosPage().catch(() => []);
-
-  // Deduplicate by slug (filename without .html)
-  const seenKeys = new Set<string>();
-  const allArticles: NewsArticle[] = [];
-  for (const articles of [...rssResults, tordillosArticles]) {
-    for (const article of articles) {
-      const key = articleKey(article);
-      if (!seenKeys.has(key)) {
-        seenKeys.add(key);
-        allArticles.push(article);
-      }
-    }
-  }
-
-  console.log(`Gaceta: ${allArticles.length} total articles from all sources`);
-
-  // Filter by keyword: title/summary only (no body fetch to avoid excessive requests)
-  const tordillosKeys = new Set(tordillosArticles.map(articleKey));
-  const filtered = allArticles.filter(
-    (a) => matchesInTitleOrSummary(a) || tordillosKeys.has(articleKey(a))
-  );
+  const articles = await fetchFromTordillosPage().catch(() => []);
+  const filtered = articles.filter(matchesKeyword);
 
   const newArticles: NewsArticle[] = [];
   for (const article of filtered) {
@@ -129,7 +95,7 @@ export async function fetchGacetaNews(env: Env): Promise<NewsArticle[]> {
   }
 
   console.log(
-    `Gaceta: ${filtered.length} matched keyword, ${newArticles.length} new`
+    `Gaceta: ${articles.length} from topic page, ${filtered.length} matched keyword, ${newArticles.length} new`
   );
   return newArticles;
 }
