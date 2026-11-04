@@ -1,6 +1,7 @@
 import { Bot, GrammyError, webhookCallback } from "grammy";
 import { Env, NewsArticle } from "./types";
 import { getWeather } from "./weather";
+import packageJson from "../package.json";
 
 export function createBot(env: Env): Bot {
   const bot = new Bot(env.BOT_TOKEN);
@@ -19,7 +20,9 @@ export function createBot(env: Env): Bot {
 
   bot.command("status", async (ctx) => {
     console.log(`/status from chat ${ctx.chat?.id}`);
-    await ctx.reply("El bot está funcionando correctamente.");
+    await ctx.reply(
+      `Bot de Tordillos v${packageJson.version} — funcionando correctamente.`
+    );
   });
 
   bot.command("chatid", async (ctx) => {
